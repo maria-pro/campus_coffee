@@ -1,0 +1,182 @@
+---
+title: "Campus coffee"
+author: "Maria Prokofieva"
+format: html
+toc: true
+toc-depth: 3
+code-fold: false
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+### Setup
+
+```{r}
+
+library(tidyverse)
+library(osmdata)
+library(ggmap)
+library(googleway)
+library(sf)
+library(plotly)
+
+vic <- getbb("Victoria Australia", format_out = "polygon") 
+b<-vic%>%
+  opq(timeout = 1000) %>%
+  add_osm_feature(key = "amenity", value = c("university","college")) %>%
+  osmdata_sf()
+b%>%write_rds("b.rds")
+
+university<-b[["osm_polygons"]]
+
+university%>%write_rds("university.rds")
+university%>%plot_ly(split=~name)%>%
+  add_trace(food)
+
+#key = shop
+
+food_shop<-c(
+  "bakery",
+  "beverages",
+  "butcher",
+  "cheese",
+  "chocolate",
+  "coffee",
+  "confectionery",
+  "convenience",
+  "deli",
+  "dairy",
+  "farm",
+  "frozen_food",
+  "greengrocer",
+  "health_food",
+  "ice_cream",
+  "pasta",
+  "pastry",
+  "seafood",
+  "spices",
+  "tea",
+  "water"
+)
+
+#key=shop general store
+
+food_general<-c(
+  "department_store",
+  "supermarket",
+  "wholesale"
+)
+
+food_amenities<-c(
+  "bar",
+  "cafe",
+  "fast_food",
+  "food_court",
+#  "ice_cream",
+ # "pub",
+  "restaurant"
+  )
+
+vic_food_shop<-vic %>%
+  opq(timeout = 1000) %>%
+  add_osm_feature(key="shop", value=food_shop)%>%
+  osmdata_sf()
+
+vic_food_general<-vic %>%
+  opq(timeout = 1000) %>%
+  add_osm_feature(key="shop", value=food_general)%>%
+  osmdata_sf()
+
+vic_food_amenities<-vic %>%
+  opq(timeout = 1000) %>%
+  add_osm_feature(key="shop", value=food_amenities)%>%
+  osmdata_sf()
+
+
+vic_food_shop%>%write_rds("vic_food_shop.rds")
+vic_food_general%>%write_rds("vic_food_general.rds")
+vic_food_amenities%>%write_rds("vic_food_amenities.rds")
+
+
+
+
+
+
+
+```
+
+### General map
+
+```{r}
+vic_major <- getbb(place_name = "Victoria Australia") %>%
+  opq() %>%
+  add_osm_feature(key = "highway", 
+                  value = c("motorway", "primary", "secondary")) %>%
+  osmdata_sf()
+
+# Create the plot object, using the osm_lines element 
+street_plot <- ggplot() +
+  geom_sf(data = vic_major$osm_lines,
+          inherit.aes = FALSE,
+          color = "black",
+          size = 0.2)
+# Print the plot
+street_plot
+
+vic_minor <- getbb(place_name = "Victoria Australia") %>%
+  opq() %>%
+  add_osm_feature(key = "highway", value = c("tertiary", "residential")) %>%
+  osmdata_sf()
+
+# Create the plot object, using the osm_lines element of tucson_minor
+street_plot <- street_plot +
+  geom_sf(data = vic_minor$osm_lines,
+          inherit.aes = FALSE,
+          color = "#666666",  # medium gray
+          size = 0.1) # half the width of the major roads
+# Print the plot
+street_plot
+```
+
+### Get food locations
+
+
+```{r}
+# Query for victoria food
+vic_food <- getbb(place_name = "Victoria Australia") %>%
+  opq(timeout = 1000) %>%
+  add_osm_feature(key = "amenity", value =amenities_food) %>%
+  osmdata_sf()
+```
+
+
+
+```{r}
+#Create a new plot object, starting with the street map
+vic_food_plot <- street_plot +
+  geom_sf(data = vic_food$osm_points,
+          inherit.aes = FALSE,
+          size = 1.5,
+          color = "#1B9E77") # approximately "elf green"???
+# Print the plote
+vic_food_plot
+```
+
+```{r}
+
+closeup_plot <- vic_food_plot +
+  geom_sf(data = vic_food_plot$osm_points,
+          inherit.aes = FALSE,
+          size = 1.5,
+          color = "#1B9E77") +
+  coord_sf(ylim = c(-39, -37), # Crop out southern part of map
+           expand = FALSE)+  # if we don't set, will expand to fit data+ # if we don't set, will expand to fit data
+  theme_void() # remove gray background
+# Print map
+closeup_plot
+```
+
+## Locate Universities
+
