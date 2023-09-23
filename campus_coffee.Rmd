@@ -1,0 +1,146 @@
+---
+title: "Melbourne coffee shops"
+output: 
+  flexdashboard::flex_dashboard:
+    theme:
+      version: 4
+      bootswatch: minty
+  #    bg: "#101010"
+  #    fg: "#FDF7F7" 
+  #    primary: "#ED79F9"
+  #    base_font:
+  #      google: Prompt
+  #    code_font:
+  #      google: JetBrains Mono
+    orientation: columns
+    source_code: embed
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(knitr)
+library(leaflet)
+library(leafem)
+
+library(crosstalk)
+library(DT)
+library(summarywidget)
+library(sf)
+library(raster)
+# Install thematic and un-comment for themed static plots (i.e., ggplot2)
+# thematic::thematic_rmd()
+```
+
+
+```{r}
+dat_prep<-read_csv("all_food_clean.csv")
+#data<-SharedData$new(read_csv("all_food_clean.csv"))
+
+data<-SharedData$new(dat_prep)
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r map}
+
+homeimg<-htmltools::HTML(paste("<img src='img/home.jpeg', width=15, height=15, Title='Home'>"))
+
+HOME<-list("Home"=homeimg)
+homebase<-ggmap::make_bbox(lon, lat, dat_prep)
+coordinates(dat_prep)<-~lon+lat
+proj4string(dat_prep) <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
+mapcenter <- coordinates(as(extent(dat_prep), "SpatialPolygons"))
+
+
+data|>leaflet()|>
+  addProviderTiles(providers$OpenStreetMap)|>
+  addAwesomeMarkers(
+    popup=~paste(
+      "<b><h3>",dat_prep$name,"</h3></b><br>",
+      "<h4>", dat_prep$shop,"</h4><br>",
+      "<h4>", dat_prep$amenity,"</h4><br>"
+    , 
+    markerColor="red"
+  ))|>
+  setView(lng=mapcenter[1], lat=mapcenter[2], zoom=5)
+```
+
+
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### **Total Locations Found:** {data-height=70}
+<center><h4><font color="#593869"><b>`r summarywidget(data, statistic='count', digits=0)` </b></font></h4></center>
+
+
+### **Information:** {data-height=200}
+
+```{r datatable}
+data |>
+  datatable(
+    rownames = FALSE,
+    style = "bootstrap",
+    class = "compact",
+    selection = "multiple",
+    options = list(
+      dom = "tip",
+      columnDefs = list(
+        list(width = '50%',
+          visible = FALSE,
+          targets = c(0,4:13,15:16))),
+    colnames = c(
+      "Name" = "name",
+     "Amenity" = "amenity",
+      "Shop" = "shop",
+      "Postcode" = "postcode_2021"
+      )
+))
+```
+
+### **Map Filters:**
+<center>
+
+```{r mapfilters}
+
+  filter_checkbox(
+    id = "Venue Description",
+    label = "Venue Type",
+    sharedData = data,
+    group = ~group,
+    inline = TRUE
+  )
+
+```
+
+
+```{r mapfilters2}
+
+  filter_select(
+    id = "Shop Description",
+    label = "Venue details",
+    sharedData = data,
+    group = ~shop,
+    multiple = TRUE
+  )
+
+```
+
+
+```{r mapfilters3}
+
+  filter_select(
+    id = "Amenity Description",
+    label = "Amenity details",
+    sharedData = data,
+    group = ~amenity,
+    multiple = TRUE
+  )
+
+```
+</center>
